@@ -1,31 +1,93 @@
-from tile_classes import *
 import pygame
-import random
+import os
+import time
+import sys
+TIMER_DELAY = 10
 size = width, height = 1000, 750
 
 
-def load_image(name, colorkey=None):
+def load_image(name):
     fullname = os.path.join('data', name)
-    # если файл не существует, то выходим
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
         sys.exit()
     image = pygame.image.load(fullname)
-    if colorkey is not None:
-        image = image.convert()
-        if colorkey == -1:
-            colorkey = image.get_at((0, 0))
-        image.set_colorkey(colorkey)
-    else:
-        image = image.convert_alpha()
     return image
 
 
+def create_sprite(name, sprite_size=None):
+    img = load_image(name)
+    if sprite_size is None:
+        sprite_size = img.get_width()
+    img = pygame.transform.scale(img, (sprite_size, sprite_size))
+    sprite = pygame.Surface((sprite_size, sprite_size), pygame.HWSURFACE)
+    sprite.blit(img, (0, 0))
+    return sprite
+
+
+class Tile:
+    def __init__(self, sprite, is_top_solid=False, is_side_solid=False):
+        self.data = is_top_solid, is_side_solid, sprite
+
+    def get_top(self) -> bool:
+        return self.data[0]
+
+    def get_side(self) -> bool:
+        return self.data[1]
+
+    def get_sprite(self) :
+        return self.data[2]
+
+
+class Air(Tile):
+    sprite = create_sprite('air.png')
+
+    def __init__(self, have_treasure=False):
+        super().__init__(Air.sprite)
+        self.treasure = have_treasure
+
+    def have_treasure(self):
+        return self.treasure
+
+    def take_treasure(self):
+        self.treasure = False
+
+
+class Ladder(Tile):
+    sprite = create_sprite('ladder.png')
+
+    def __init__(self):
+        super().__init__(Ladder.sprite, is_top_solid=True)
+
+
+class Stone(Tile):
+    sprite = create_sprite('stone.png')
+
+    def __init__(self, is_digable=True):
+        super().__init__(Stone.sprite, is_top_solid=True, is_side_solid=True)
+        self.digable = is_digable
+        self.dig_data = 0
+
+    def is_digable(self):
+        return self.digable and not self.dig_data
+
+    def dig(self):
+        if self.is_digable():
+            self.dig_data = time.time() + TIMER_DELAY
+
+
+class Item:
+    def __init__(self, sprite):
+        self.sprite = sprite
+
+    def take(self):
+        pass
+
+
 class Level:
-    def __init__(self, sprites, level_data):
-        self.board = Board(level_data[0], level_data[1], sprites[0], level_data[9:])
-        self.hp = level_data[2]
-        self.treasure = level_data[3]
+    def __init__(self, sprites: tuple, level_size: tuple, map_matrix: list, treasure_amount: int):
+        self.board = Board(level_size[0], level_size[1], sprites[0], map_matrix)
+        self.treasure = treasure_amount
 
 
 class Board:
@@ -68,10 +130,9 @@ class Board:
 
 
 class Entity:
-    def __init__(self, name, coords, sprites, hp= 100):
+    def __init__(self, name, coords, sprites):
         self.coords = coords
         self.name = name
-        self.hp = hp
         self.sprites = sprites
 
     def move(self, coords):
@@ -79,5 +140,6 @@ class Entity:
 
 
 class Hero(Entity):
+    sprite = create_sprite('hero.png')
     def __init__(self):
-        super().__init__()
+        super().__init__("Hero", (0, 0), (Hero.sprite,))
