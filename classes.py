@@ -42,7 +42,7 @@ class Tile:
 class Air(Tile):
     sprite = create_sprite('air.png')
 
-    def __init__(self, have_treasure=False):
+    def __init__(self, have_treasure=False, treasure=None):
         super().__init__(Air.sprite)
         self.treasure = have_treasure
 
@@ -58,6 +58,10 @@ class Ladder(Tile):
 
     def __init__(self):
         super().__init__(Ladder.sprite, is_top_solid=True)
+
+
+class Rope():
+    pass
 
 
 class Stone(Tile):
@@ -84,16 +88,12 @@ class Item:
         pass
 
 
-class Level:
-    def __init__(self, sprites: tuple, level_size: tuple, map_matrix: list, treasure_amount: int):
-        self.board = Board(level_size[0], level_size[1], sprites[0], map_matrix)
-        self.treasure = treasure_amount
-
-
 class Board:
-    def __init__(self, width, height, sprite, board_data):
+    def __init__(self, width, height, sprite, treasure_amount, board_data):
+        self.sprite = sprite
         self.width = width
         self.height = height
+        self.treasure_amount = treasure_amount
         self.board = board_data
         self.left = 10
         self.top = 10

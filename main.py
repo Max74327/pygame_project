@@ -1,6 +1,14 @@
 import pygame
 from classes import *
 
+board_data = [
+    [Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Ladder()],
+    [Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Ladder()],
+    [Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Ladder()],
+    [Stone(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Ladder()],
+    [Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone()]
+]
+level = Board(10, 5, sprite, 5, board_data)
 
 def main():
     pygame.init()
