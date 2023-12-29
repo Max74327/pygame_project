@@ -1,33 +1,95 @@
-import pygame
+import pygame as pg
 import os
-import time
 import sys
-TIMER_DELAY = 10
-size = width, height = 1000, 750
+import random
+import time
+from pprint import pprint
+
+# from teste_classes_maintenance import tile_group, entity_group
+# from test1 import SIZE, WIDTH, HEIGHT
+all_sprites = pg.sprite.Group()
+tiles_group = pg.sprite.Group()
+player_group = pg.sprite.Group()
+entity_group = pg.sprite.Group()
+TILE_WIDTH = 30
+SIZE = WIDTH, HEIGHT = 1600, 900  # 1920, 1080
+FPS = 60  # 165
+pg.init()
+screen = pg.display.set_mode(SIZE)
+run = True
+clock = pg.time.Clock()
+player = None
 
 
-def load_image(name):
-    fullname = os.path.join('data', name)
-    if not os.path.isfile(fullname):
-        print(f"Файл с изображением '{fullname}' не найден")
+def load_image(name, colorkey=None):
+    path = os.path.join('data', name)
+    if not os.path.isfile(path):
         sys.exit()
-    image = pygame.image.load(fullname)
+    image = pg.image.load(path)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
     return image
 
 
-def create_sprite(name, sprite_size=None):
-    img = load_image(name)
-    if sprite_size is None:
-        sprite_size = img.get_width()
-    img = pygame.transform.scale(img, (sprite_size, sprite_size))
-    sprite = pygame.Surface((sprite_size, sprite_size), pygame.HWSURFACE)
-    sprite.blit(img, (0, 0))
-    return sprite
+def terminate():
+    pg.quit()
+    sys.exit()
 
 
-class Tile:
-    def __init__(self, sprite, is_top_solid=False, is_side_solid=False):
-        self.data = is_top_solid, is_side_solid, sprite
+def start_screen():
+    background = pg.transform.scale(load_image('fon.jpg'), SIZE)
+    screen.blit(background, (0, 0))
+
+
+def load_level(name):
+    path = 'data/' + name
+    with open(path, 'r') as f:
+        level_map = [line.strip() for line in f]
+    max_width = max(map(len, level_map))
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+
+def wait_for_press():
+    for event in pg.event.get():
+        if event.type in [pg.MOUSEBUTTONDOWN, pg.KEYDOWN]:
+            return False
+    return True
+
+
+class Camera:
+    def __init__(self, mode=None):
+        self.dx = 0
+        self.dy = 0
+        self.mode = mode
+
+    def apply(self, obj):
+        obj.rect.x += self.dx
+        obj.rect.y += self.dy
+
+    def undo(self, obj):
+        obj.rect.x -= self.dx
+        obj.rect.y -= self.dy
+
+    def update(self, target):
+        self.dx = -(target.rect.x + target.rect.w // 2 - WIDTH // 2)
+        self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
+        if self.mode is not None and self.mode == 0:
+            self.dy = 0
+        elif self.mode is not None and self.mode == 1:
+            self.dx = 0
+
+
+class Tile(pg.sprite.Sprite):
+    def __init__(self, coords, is_top_solid=False, is_side_solid=False):
+        super().__init__(all_sprites, tiles_group)
+        self.data = is_top_solid, is_side_solid
+        self.width = TILE_WIDTH
+        self.coords = coords
 
     def get_top(self) -> bool:
         return self.data[0]
@@ -35,16 +97,19 @@ class Tile:
     def get_side(self) -> bool:
         return self.data[1]
 
-    def get_sprite(self) :
-        return self.data[2]
+    # def get_sprite(self) :
+    #    return self.data[2]
 
 
 class Air(Tile):
-    sprite = create_sprite('air.png')
-
-    def __init__(self, have_treasure=False, treasure=None):
-        super().__init__(Air.sprite)
+    # sprite = create_sprite('air.png')
+    def __init__(self, coords, have_treasure=False, treasure=None):
+        super().__init__(coords)
         self.treasure = have_treasure
+        self.image = load_image('air.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
     def have_treasure(self):
         return self.treasure
@@ -54,10 +119,14 @@ class Air(Tile):
 
 
 class Ladder(Tile):
-    sprite = create_sprite('ladder.png')
+    # sprite = create_sprite('ladder.png')
 
-    def __init__(self):
-        super().__init__(Ladder.sprite, is_top_solid=True)
+    def __init__(self, coords):
+        super().__init__(coords, is_top_solid=True)
+        self.image = load_image('ladder.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
 class Rope():
@@ -65,10 +134,14 @@ class Rope():
 
 
 class Stone(Tile):
-    sprite = create_sprite('stone.png')
+    # sprite = create_sprite('stone.png')
 
-    def __init__(self, is_digable=True):
-        super().__init__(Stone.sprite, is_top_solid=True, is_side_solid=True)
+    def __init__(self, coords, is_digable=True):
+        super().__init__(coords, is_top_solid=True, is_side_solid=True)
+        self.image = load_image('stone.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
         self.digable = is_digable
         self.dig_data = 0
 
@@ -80,66 +153,134 @@ class Stone(Tile):
             self.dig_data = time.time() + TIMER_DELAY
 
 
-class Item:
-    def __init__(self, sprite):
-        self.sprite = sprite
+class Item(pg.sprite.Sprite):
+    def __init__(self):
+        pass
 
     def take(self):
         pass
 
 
-class Board:
-    def __init__(self, width, height, sprite, treasure_amount, board_data):
-        self.sprite = sprite
-        self.width = width
-        self.height = height
-        self.treasure_amount = treasure_amount
-        self.board = board_data
-        self.left = 10
-        self.top = 10
-        self.cell_size = 30
-
-    def set_view(self, cell_size, left=None, top=None):
-        if not left is None:
-            self.left = left
-        if not top is None:
-            self.top = top
-        self.cell_size = cell_size
-
-    def render(self, screen):
-        for y in range(self.height):
-            for x in range(self.width):
-                x_cell = self.left + x * self.cell_size
-                y_cell = self.top + y * self.cell_size
-                pygame.draw.rect(screen, pygame.Color(127, 127, 127), (x_cell, y_cell, self.cell_size, self.cell_size), 0)
-                pygame.draw.rect(screen, (255, 255, 255), (x_cell, y_cell, self.cell_size, self.cell_size), 1)
-
-    def get_cell(self, mouse_pos):
-        cell_x = (mouse_pos[0] - self.left) // self.cell_size
-        cell_y = (mouse_pos[1] - self.top) // self.cell_size
-        if cell_x < 0 or cell_x > self.width or cell_y < 0 or cell_y > self.height:
-            return None
-        return cell_x, cell_y
-
-    def on_click(self, cell):
-        pass
-
-    def get_click(self, mouse_pos):
-        cell = self.get_cell(mouse_pos)
-        self.on_click(cell)
-
-
-class Entity:
-    def __init__(self, name, coords, sprites):
+class Entity(pg.sprite.Sprite):
+    def __init__(self, name, coords):
+        super().__init__(all_sprites, entity_group)
         self.coords = coords
         self.name = name
-        self.sprites = sprites
 
     def move(self, coords):
         self.coords = coords
 
 
 class Hero(Entity):
-    sprite = create_sprite('hero.png')
-    def __init__(self):
-        super().__init__("Hero", (0, 0), (Hero.sprite,))
+    # sprite = create_sprite('hero.png')
+    def __init__(self, coords):
+        super().__init__("Hero", coords)  # , (Hero.sprite,))
+        self.image = load_image('hero.png')
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.refresh()
+
+    def can_move_left(self, level):
+        if self.coords[0] == 0:
+            return False
+        return type(level[self.coords[1]][self.coords[0] - 1]) in [Air, Ladder, Rope]
+
+    def move_left(self, level):
+        if self.can_move_left(level):
+            self.coords = self.coords[0] - 1, self.coords[1]
+            self.refresh()
+
+    def can_move_right(self, level):
+        if self.coords[0] == len(level) - 1:
+            return False
+        return type(level[self.coords[1]][self.coords[0] + 1]) in [Air, Ladder, Rope]
+
+    def move_right(self, level):
+        if self.can_move_right(level):
+            self.coords = self.coords[0] + 1, self.coords[1]
+            self.refresh()
+
+    def refresh(self):
+        self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
+
+
+class Level:
+    tile_codes = {'1': Air, '2': Ladder, '3': Stone}
+
+    def __init__(self, level):
+        self.size = self.width, self.height = len(level[0]), len(level)
+        self.level = level
+        self.map = [[0 for j in range(len(level))] for i in range(len(level[0]))]
+        self.draw_group = pg.sprite.Group()
+        self.player = Hero((0, 0))
+        self.player_group = pg.sprite.Group()
+        self.player_group.add(self.player)
+        self.generate_level()
+
+    def generate_level(self):
+        for y in range(len(self.map)):
+            for x in range(len(self.map[y])):
+                if self.level[y][x] == '@':
+                    self.map[y][x] = Air((x, y))
+                    self.player.move((x, y))
+                    self.player.refresh()
+                else:
+                    self.map[y][x] = self.tile_codes[self.level[y][x]]((x, y))
+                self.draw_group.add(self.map[y][x])
+
+    def draw(self, surface):
+        self.draw_group.draw(surface)
+
+    def draw_player(self, surface):
+        surface.blit(self.player.image, (self.player.coords[0] * TILE_WIDTH, self.player.coords[1] * TILE_WIDTH))
+
+    def update_player(self):
+        self.player.refresh()
+
+
+def wait_screen():
+    while wait_for_press():
+        start_screen()
+        pg.display.flip()
+
+
+class LevelScreen:
+    def __init__(self, level):
+        self.level = Level(load_level(f'{level}.txt'))
+
+    def run(self, screen):
+        r = True
+        background = pg.sprite.Sprite()
+        background.image = load_image('background.jpg')
+        background.rect = background.image.get_rect()
+        all_sprites.add(background)
+        camera = Camera()
+        clock = pg.time.Clock()
+        while r:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    r = False
+                if event.type == pg.KEYDOWN:
+                    keys = pg.key.get_pressed()
+                    if keys[pg.K_a]:
+                        self.level.player.move_left(self.level.map)
+                    if keys[pg.K_d]:
+                        self.level.player.move_right(self.level.map)
+                    if keys[pg.K_ESCAPE]:
+                        r = False
+            screen.fill((0, 0, 0))
+            self.level.update_player()
+            camera.update(self.level.player)
+            for sprite in all_sprites:
+                camera.apply(sprite)
+            all_sprites.draw(screen)
+            self.level.draw(screen)
+            self.level.player_group.draw(screen)
+            for sprite in all_sprites:
+                camera.undo(sprite)
+            pg.display.flip()
+            clock.tick(165)
+
+# level = load_level('map.txt')
+# player, level_x, level_y = generate_level(level)
+# camera = Camera()

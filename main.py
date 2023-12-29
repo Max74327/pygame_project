@@ -1,32 +1,43 @@
-import pygame
-from classes import *
+import pygame as pg
+import os
+import sys
+import random
+import time
+from test_classes import *
 
-board_data = [
-    [Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Rope(), Ladder()],
-    [Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Ladder()],
-    [Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Ladder()],
-    [Stone(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Air(), Ladder()],
-    [Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone(), Stone()]
-]
-level = Board(10, 5, sprite, 5, board_data)
-
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode(size)
-    # поле 5 на 7
-    board = Board(25, 25)
-    board.set_view(cell_size=30, left=0, top=0)
-
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                board.get_click(event.pos)
-        screen.fill((25, 25, 25))
-        board.render(screen)
-        pygame.display.flip()
+def load_image(name, colorkey=None):
+    path = os.path.join('data', name)
+    if not os.path.isfile(path):
+        sys.exit()
+    image = pg.image.load(path)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
 
 
-main()
+def wait_for_press():
+    for event in pg.event.get():
+        if event.type in [pg.MOUSEBUTTONDOWN, pg.KEYDOWN]:
+            return False
+    return True
+
+
+def start_screen():
+    background = pg.transform.scale(load_image('fon.jpg'), SIZE)
+    screen.blit(background, (0, 0))
+
+
+def wait_screen():
+    while wait_for_press():
+        start_screen()
+        pg.display.flip()
+
+
+wait_screen()
+lvl = LevelScreen('map')
+lvl.run(screen)
