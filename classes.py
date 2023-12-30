@@ -106,19 +106,22 @@ class Tile(pg.sprite.Sprite):
 
 class Air(Tile):
     # sprite = create_sprite('air.png')
-    def __init__(self, coords, have_treasure=False, treasure=None):
+    def __init__(self, coords):
         super().__init__(coords)
-        self.treasure = have_treasure
         self.image = load_image('air.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
-    def have_treasure(self):
-        return self.treasure
 
-    def take_treasure(self):
-        self.treasure = False
+class Exit(Tile):
+
+    def __init__(self, coords):
+        super().__init__(coords)
+        self.image = load_image('mar.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
 class Ladder(Tile):
@@ -132,28 +135,27 @@ class Ladder(Tile):
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
-class Rope():
-    pass
+class Rope(Tile):
+    # sprite = create_sprite('rope.png')
+
+    def __init__(self, coords):
+        super().__init__(coords)
+        self.image = load_image('grass.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
 class Stone(Tile):
     # sprite = create_sprite('stone.png')
 
-    def __init__(self, coords, is_digable=True):
+    def __init__(self, coords):
         super().__init__(coords, is_top_solid=True, is_side_solid=True)
         self.image = load_image('stone.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
-        self.digable = is_digable
         self.dig_data = 0
-
-    def is_digable(self):
-        return self.digable and not self.dig_data
-
-    def dig(self):
-        if self.is_digable():
-            self.dig_data = time.time() + TIMER_DELAY
 
 
 class Item(pg.sprite.Sprite):
@@ -186,14 +188,14 @@ class Hero(Entity):
     def fall(self, level):
         if type(level[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
             return
-        if len(level) > self.coords[1] + 1 and type(level[self.coords[1] + 1][self.coords[0]]) in [Air, Rope]:
+        if len(level) > self.coords[1] + 1 and not level[self.coords[1] + 1][self.coords[0]].get_top():
             self.coords = self.coords[0], self.coords[1] + 1
             self.fall(level)
 
     def can_move_left(self, level):
         if self.coords[0] == 0:
             return False
-        return type(level[self.coords[1]][self.coords[0] - 1]) in [Air, Ladder, Rope]
+        return not level[self.coords[1]][self.coords[0] - 1].get_side()
 
     def can_move_up(self, level):
         if self.coords[1] == 0:
@@ -213,7 +215,7 @@ class Hero(Entity):
     def can_move_right(self, level):
         if self.coords[0] == len(level) - 1:
             return False
-        return type(level[self.coords[1]][self.coords[0] + 1]) in [Air, Ladder, Rope]
+        return not level[self.coords[1]][self.coords[0] + 1].get_side()
 
     def move_right(self, level):
         if self.can_move_right(level):
@@ -223,8 +225,7 @@ class Hero(Entity):
     def can_move_down(self, level):
         if self.coords[1] == len(level) - 1:
             return False
-        return type(level[self.coords[1] + 1][self.coords[0]]) in [Ladder, Rope, Air] and type(
-            level[self.coords[1]][self.coords[0]]) in [Air, Ladder, Rope]
+        return not level[self.coords[1] + 1][self.coords[0]].get_top() or type(level[self.coords[1] + 1][self.coords[0]]) is Ladder
 
     def move_down(self, level):
         if self.can_move_down(level):
@@ -238,7 +239,7 @@ class Hero(Entity):
 
 
 class Level:
-    tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope}
+    tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Exit}
 
     def __init__(self, level):
         self.size = self.width, self.height = len(level[0]), len(level)
