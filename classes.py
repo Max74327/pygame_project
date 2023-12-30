@@ -52,7 +52,6 @@ def load_level(name):
     with open(path, 'r') as f:
         level_map = [line.strip() for line in f]
     max_width = max(map(len, level_map))
-    pprint(list(map(lambda x: x.ljust(max_width, '.'), level_map)))
 
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
@@ -237,16 +236,6 @@ class Hero(Entity):
             self.fall(level)
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
-    def mouse_motion(self, coords, level):
-        if coords[0] < self.rect.x:
-            self.move_left(level)
-        elif coords[0] > self.rect.x:
-            self.move_right(level)
-        if coords[1] < self.rect.y:
-            self.move_up(level)
-        elif coords[1] > self.rect.y:
-            self.move_down(level)
-
 
 class Level:
     tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Exit}
@@ -254,7 +243,7 @@ class Level:
     def __init__(self, level):
         self.size = self.width, self.height = len(level[0]), len(level)
         self.level = level
-        self.map = [[0 for _ in range(len(level))] for _ in range(len(level[0]))]
+        self.map = [[0 for j in range(len(level))] for i in range(len(level[0]))]
         self.draw_group = pg.sprite.Group()
         self.player = Hero((0, 0))
         self.player_group = pg.sprite.Group()
@@ -299,7 +288,6 @@ class LevelScreen:
         background.rect = background.image.get_rect()
         all_sprites.add(background)
         camera = Camera()
-        mouse_flag = False
         clock = pg.time.Clock()
         while r:
             for event in pg.event.get():
