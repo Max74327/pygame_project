@@ -1,9 +1,8 @@
 import pygame as pg
 import os
 import sys
-import random
 import time
-from pprint import pprint
+TIMER_DELAY = 10
 
 # from teste_classes_maintenance import tile_group, entity_group
 # from test1 import SIZE, WIDTH, HEIGHT
@@ -155,7 +154,7 @@ class Stone(Tile):
 
 class Item(pg.sprite.Sprite):
     def __init__(self):
-        pass
+        super().__init__()
 
     def take(self):
         pass

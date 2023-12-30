@@ -1,9 +1,5 @@
-import pygame as pg
-import os
-import sys
-import random
-import time
-from test_classes import *
+from classes import *
+
 
 def load_image(name, colorkey=None):
     path = os.path.join('data', name)
