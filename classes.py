@@ -1,7 +1,9 @@
 import pygame as pg
+from pprint import pprint
 import os
 import sys
 import time
+
 TIMER_DELAY = 10
 
 # from teste_classes_maintenance import tile_group, entity_group
@@ -50,6 +52,8 @@ def load_level(name):
     with open(path, 'r') as f:
         level_map = [line.strip() for line in f]
     max_width = max(map(len, level_map))
+    pprint(list(map(lambda x: x.ljust(max_width, '.'), level_map)))
+
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
 
@@ -179,15 +183,32 @@ class Hero(Entity):
         self.rect = self.image.get_rect()
         self.refresh()
 
+    def fall(self, level):
+        if type(level[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
+            return
+        if len(level) > self.coords[1] + 1 and type(level[self.coords[1] + 1][self.coords[0]]) in [Air, Rope]:
+            self.coords = self.coords[0], self.coords[1] + 1
+            self.fall(level)
+
     def can_move_left(self, level):
         if self.coords[0] == 0:
             return False
         return type(level[self.coords[1]][self.coords[0] - 1]) in [Air, Ladder, Rope]
 
+    def can_move_up(self, level):
+        if self.coords[1] == 0:
+            return False
+        return type(level[self.coords[1]][self.coords[0]]) == Ladder
+
+    def move_up(self, level):
+        if self.can_move_up(level):
+            self.coords = self.coords[0], self.coords[1] - 1
+            self.refresh(level)
+
     def move_left(self, level):
         if self.can_move_left(level):
             self.coords = self.coords[0] - 1, self.coords[1]
-            self.refresh()
+            self.refresh(level)
 
     def can_move_right(self, level):
         if self.coords[0] == len(level) - 1:
@@ -197,14 +218,27 @@ class Hero(Entity):
     def move_right(self, level):
         if self.can_move_right(level):
             self.coords = self.coords[0] + 1, self.coords[1]
-            self.refresh()
+            self.refresh(level)
 
-    def refresh(self):
+    def can_move_down(self, level):
+        if self.coords[1] == len(level) - 1:
+            return False
+        return type(level[self.coords[1] + 1][self.coords[0]]) in [Ladder, Rope, Air] and type(
+            level[self.coords[1]][self.coords[0]]) in [Air, Ladder, Rope]
+
+    def move_down(self, level):
+        if self.can_move_down(level):
+            self.coords = self.coords[0], self.coords[1] + 1
+            self.refresh(level)
+
+    def refresh(self, level=None):
+        if level is not None:
+            self.fall(level)
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
 
 class Level:
-    tile_codes = {'1': Air, '2': Ladder, '3': Stone}
+    tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope}
 
     def __init__(self, level):
         self.size = self.width, self.height = len(level[0]), len(level)
@@ -261,10 +295,14 @@ class LevelScreen:
                     r = False
                 if event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
-                    if keys[pg.K_a]:
+                    if keys[pg.K_a] or keys[pg.K_LEFT]:
                         self.level.player.move_left(self.level.map)
-                    if keys[pg.K_d]:
+                    if keys[pg.K_d] or keys[pg.K_RIGHT]:
                         self.level.player.move_right(self.level.map)
+                    if keys[pg.K_w] or keys[pg.K_UP]:
+                        self.level.player.move_up(self.level.map)
+                    if keys[pg.K_s] or keys[pg.K_DOWN]:
+                        self.level.player.move_down(self.level.map)
                     if keys[pg.K_ESCAPE]:
                         r = False
             screen.fill((0, 0, 0))
