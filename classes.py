@@ -237,6 +237,16 @@ class Hero(Entity):
             self.fall(level)
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
+    def mouse_motion(self, coords, level):
+        if coords[0] < self.rect.x:
+            self.move_left(level)
+        elif coords[0] > self.rect.x:
+            self.move_right(level)
+        if coords[1] < self.rect.y:
+            self.move_up(level)
+        elif coords[1] > self.rect.y:
+            self.move_down(level)
+
 
 class Level:
     tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Exit}
@@ -244,7 +254,7 @@ class Level:
     def __init__(self, level):
         self.size = self.width, self.height = len(level[0]), len(level)
         self.level = level
-        self.map = [[0 for j in range(len(level))] for i in range(len(level[0]))]
+        self.map = [[0 for _ in range(len(level))] for _ in range(len(level[0]))]
         self.draw_group = pg.sprite.Group()
         self.player = Hero((0, 0))
         self.player_group = pg.sprite.Group()
@@ -289,12 +299,19 @@ class LevelScreen:
         background.rect = background.image.get_rect()
         all_sprites.add(background)
         camera = Camera()
+        mouse_flag = False
         clock = pg.time.Clock()
         while r:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     r = False
-                if event.type == pg.KEYDOWN:
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    mouse_flag = True
+                if event.type == pg.MOUSEBUTTONUP:
+                    mouse_flag = False
+                if mouse_flag:
+                    self.level.player.mouse_motion(event.pos, self.level.level)
+                elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if keys[pg.K_a] or keys[pg.K_LEFT]:
                         self.level.player.move_left(self.level.map)
