@@ -231,6 +231,16 @@ class Hero(Entity):
             self.coords = self.coords[0], self.coords[1] + 1
             self.refresh(level)
 
+    def mouse_motion(self, coords, level):
+        if coords[1] > self.rect[1]:
+            self.move_down(level)
+        if coords[1] < self.rect[1]:
+            self.move_up(level)
+        if coords[0] > self.rect[0]:
+            self.move_right(level)
+        if coords[0] < self.rect[0]:
+            self.move_left(level)
+
     def refresh(self, level=None):
         if level is not None:
             self.fall(level)
@@ -298,7 +308,7 @@ class LevelScreen:
                 if event.type == pg.MOUSEBUTTONUP:
                     mouse_flag = False
                 if mouse_flag:
-                    self.level.player.mouse_motion(event.pos, self.level.level)
+                    self.level.player.mouse_motion(event.pos, self.level.map)
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if keys[pg.K_a] or keys[pg.K_LEFT]:
