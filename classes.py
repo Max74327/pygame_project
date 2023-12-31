@@ -280,6 +280,89 @@ class LevelScreen:
             pg.display.flip()
             clock.tick(165)
 
+
+class Button:
+    def __init__(self, pos, size, screen, font, text='Button', text_color=(0, 255, 0), border_color=(0, 255, 0), back_color=(0, 0, 0)):
+        self.size = size
+        self.pos = pos
+        self.text = text
+        self.screen = screen
+        self.font = font
+        self.text_size = self.text_width, self.text_height = self.font.size(self.text)
+        self.text_color = self.d_t_c = text_color
+        self.border_color = self.d_b_c = border_color
+        self.back_color = self.d_bg_c = back_color
+
+    def draw(self):
+        pg.draw.rect(self.screen, self.back_color, (*self.pos, *self.size))
+        text = self.font.render(self.text, False, self.text_color, self.back_color)
+        self.screen.blit(text, (self.pos[0] + self.text_width / 2, self.pos[1] + self.text_height / 4))
+        pg.draw.rect(self.screen, self.border_color, (*self.pos, *self.size), 5)
+
+    def click(self, pos):
+        if self.in_box(pos):
+            self.on_click()
+
+    def on_click(self):
+        if self.border_color == (0, 255, 0):
+            self.border_color = (255, 0, 0)
+        else:
+            self.border_color = (0, 255, 0)
+
+    def in_box(self, pos):
+        return self.pos[0] <= pos[0] <= self.pos[0] + self.size[0] and self.pos[1] <= pos[1] <= self.pos[1] + self.size[1]
+
+    def mouse_move(self, pos):
+        if self.in_box(pos):
+            self.active()
+        else:
+            self.inactive()
+
+    def active(self):
+        self.back_color = (255, 255, 0)
+        self.text_color = (0, 0, 0)
+
+    def inactive(self):
+        self.text_color = self.d_t_c
+        #self.border_color = self.d_b_c
+        self.back_color = self.d_bg_c
+
+
+class PlayButton(Button):
+    def __init__(self, pos, size, screen, font, text, text_color, border_color, back_color, win):
+        super().__init__(pos, size, screen, font, text, text_color, border_color, back_color)
+        self.win = win
+
+    def on_click(self):
+        self.win.r = False
+        lvl = LevelScreen('map')
+        lvl.run(screen)
+
+
+class MainMenu:
+    def __init__(self, screen):
+        self.screen = screen
+        self.play_button = PlayButton((WIDTH / 2 - 150, HEIGHT / 2 - 200), (300, 100), self.screen, pg.font.Font(None, 100), 'Play', (0, 255, 0), (0, 255, 0), (0, 0, 0), self)
+
+    def run(self):
+        r = True
+        while r:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    r = False
+                if event.type == pg.KEYDOWN:
+                    keys = pg.key.get_pressed()
+                    if keys[pg.K_ESCAPE]:
+                        r = False
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    self.play_button.click(event.pos)
+                if event.type == pg.MOUSEMOTION:
+                    self.play_button.mouse_move(event.pos)
+            screen.fill((0, 0, 0))
+            self.play_button.draw()
+            pg.display.flip()
+            clock.tick(165)
+
 # level = load_level('map.txt')
 # player, level_x, level_y = generate_level(level)
 # camera = Camera()
