@@ -244,21 +244,23 @@ def wait_screen():
 
 
 class LevelScreen:
-    def __init__(self, level):
+    def __init__(self, level, screen):
         self.level = Level(load_level(f'{level}.txt'))
+        self.r = True
+        self.screen = screen
 
-    def run(self, screen):
-        r = True
+    def run(self):
+        self.r = True
         background = pg.sprite.Sprite()
         background.image = load_image('background.jpg')
         background.rect = background.image.get_rect()
         all_sprites.add(background)
         camera = Camera()
         clock = pg.time.Clock()
-        while r:
+        while self.r:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
-                    r = False
+                    self.r = False
                 if event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if keys[pg.K_a]:
@@ -266,15 +268,15 @@ class LevelScreen:
                     if keys[pg.K_d]:
                         self.level.player.move_right(self.level.map)
                     if keys[pg.K_ESCAPE]:
-                        r = False
+                        self.r = False
             screen.fill((0, 0, 0))
             self.level.update_player()
             camera.update(self.level.player)
             for sprite in all_sprites:
                 camera.apply(sprite)
-            all_sprites.draw(screen)
-            self.level.draw(screen)
-            self.level.player_group.draw(screen)
+            all_sprites.draw(self.screen)
+            self.level.draw(self.screen)
+            self.level.player_group.draw(self.screen)
             for sprite in all_sprites:
                 camera.undo(sprite)
             pg.display.flip()
@@ -296,7 +298,7 @@ class Button:
     def draw(self):
         pg.draw.rect(self.screen, self.back_color, (*self.pos, *self.size))
         text = self.font.render(self.text, False, self.text_color, self.back_color)
-        self.screen.blit(text, (self.pos[0] + self.text_width / 2, self.pos[1] + self.text_height / 4))
+        self.screen.blit(text, (self.pos[0] + self.text_width / 4, self.pos[1] + self.text_height / 4))
         pg.draw.rect(self.screen, self.border_color, (*self.pos, *self.size), 5)
 
     def click(self, pos):
@@ -319,8 +321,8 @@ class Button:
             self.inactive()
 
     def active(self):
-        self.back_color = (255, 255, 0)
-        self.text_color = (0, 0, 0)
+        self.back_color = self.d_t_c
+        self.text_color = self.d_bg_c
 
     def inactive(self):
         self.text_color = self.d_t_c
@@ -334,32 +336,135 @@ class PlayButton(Button):
         self.win = win
 
     def on_click(self):
-        self.win.r = False
-        lvl = LevelScreen('map')
-        lvl.run(screen)
+        lvl_window = LevelSelectionWindow(self.win.screen)
+        lvl_window.run()
+        #self.win.r = False
+        #lvl = LevelScreen('map', self.win.screen)
+        #lvl.run()
+
+
+class LevelButton(Button):
+    def __init__(self, pos, size, screen, font, text, text_color, border_color, back_color, win):
+        super().__init__(pos, size, screen, font, text, text_color, border_color, back_color)
+        self.win = win
+
+    def on_click(self):
+        #self.win.r = False
+        lvl = LevelScreen('map', self.win.screen)
+        lvl.run()
+
+
+class SettingsButton(Button):
+    def __init__(self, pos, size, screen, font, text, text_color, border_color, back_color, win):
+        super().__init__(pos, size, screen, font, text, text_color, border_color, back_color)
+        self.win = win
+
+    def on_click(self):
+        #self.win.r = False
+        settings_menu = SettingsMenu(self.win.screen)
+        settings_menu.run()
+
+
+class LevelSelectionWindow:
+    def __init__(self, screen):
+        self.screen = screen
+        self.level_buttons = list()
+        self.current_page = 0
+        self.level_count = 20
+        self.levels_on_page = 20
+        self.level_rows = 4
+        self.level_columns = self.levels_on_page // self.level_rows
+        self.r = True
+        self.load_level_buttons()
+
+    def load_level_buttons(self):
+        for y in range(self.level_rows):
+            row = list()
+            for x in range(self.level_columns):
+                y_of = int(0.05 * HEIGHT)
+                sz = int((HEIGHT * (0.95 - 0.05 * self.level_rows)) // self.level_rows)
+                x_of = int((WIDTH - sz * self.level_columns) // (self.level_columns + 1))
+                row.append(LevelButton((x_of + x * (x_of + sz), y_of + y * (y_of + sz)), (sz, sz), self.screen, pg.font.Font(None,  sz), str(y * self.level_columns + x + 1), (175, 220, 55), (77, 100, 17), (75, 75, 75), self))
+            self.level_buttons.append(row)
+
+    def run(self):
+        self.r = True
+        while self.r:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.r = False
+                if event.type == pg.KEYDOWN:
+                    keys = pg.key.get_pressed()
+                    if keys[pg.K_ESCAPE]:
+                        self.r = False
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    if pg.mouse.get_pressed()[0]:
+                        for lst in self.level_buttons:
+                            for button in lst:
+                                button.click(event.pos)
+                if event.type == pg.MOUSEMOTION:
+                    for lst in self.level_buttons:
+                        for button in lst:
+                            button.mouse_move(event.pos)
+            screen.fill((0, 0, 0))
+            for lst in self.level_buttons:
+                for button in lst:
+                    button.draw()
+            pg.display.flip()
+            clock.tick(165)
+
+
+class SettingsMenu:
+    def __init__(self, screen):
+        self.screen = screen
+        self.r = True
+
+    def run(self):
+        self.r = True
+        while self.r:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.r = False
+                if event.type == pg.KEYDOWN:
+                    keys = pg.key.get_pressed()
+                    if keys[pg.K_ESCAPE]:
+                        self.r = False
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    pass
+                if event.type == pg.MOUSEMOTION:
+                    pass
+            screen.fill((0, 0, 0))
+            pg.display.flip()
+            clock.tick(165)
 
 
 class MainMenu:
     def __init__(self, screen):
         self.screen = screen
         self.play_button = PlayButton((WIDTH / 2 - 150, HEIGHT / 2 - 200), (300, 100), self.screen, pg.font.Font(None, 100), 'Play', (0, 255, 0), (0, 255, 0), (0, 0, 0), self)
+        self.settings_button = SettingsButton((WIDTH / 2 - 200, HEIGHT / 2), (400, 100), self.screen, pg.font.Font(None, 100), 'Settings', (0, 175, 175), (75, 75, 0), (40, 40, 40), self)
+        self.r = True
 
     def run(self):
-        r = True
-        while r:
+        self.r = True
+        while self.r:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
-                    r = False
+                    self.r = False
                 if event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if keys[pg.K_ESCAPE]:
-                        r = False
+                        self.r = False
                 if event.type == pg.MOUSEBUTTONDOWN:
-                    self.play_button.click(event.pos)
+                    if pg.mouse.get_pressed()[0]:
+                        self.play_button.click(event.pos)
+                        self.settings_button.click(event.pos)
                 if event.type == pg.MOUSEMOTION:
                     self.play_button.mouse_move(event.pos)
+                    self.settings_button.mouse_move(event.pos)
             screen.fill((0, 0, 0))
             self.play_button.draw()
+            self.settings_button.draw()
             pg.display.flip()
             clock.tick(165)
 

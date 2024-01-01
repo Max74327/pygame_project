@@ -35,7 +35,7 @@ def wait_screen():
 
 
 wait_screen()
-lvl = LevelScreen('map')
+#lvl = LevelScreen('map', screen)
 main_menu = MainMenu(screen)
 main_menu.run()
 #lvl.run(screen)
