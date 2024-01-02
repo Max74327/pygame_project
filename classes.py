@@ -102,19 +102,22 @@ class Tile(pg.sprite.Sprite):
 
 class Air(Tile):
     # sprite = create_sprite('air.png')
-    def __init__(self, coords, have_treasure=False, treasure=None):
+    def __init__(self, coords):
         super().__init__(coords)
-        self.treasure = have_treasure
         self.image = load_image('air.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
-    def have_treasure(self):
-        return self.treasure
 
-    def take_treasure(self):
-        self.treasure = False
+class Exit(Tile):
+
+    def __init__(self, coords):
+        super().__init__(coords)
+        self.image = load_image('mar.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
 class Ladder(Tile):
@@ -128,28 +131,27 @@ class Ladder(Tile):
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
-class Rope():
-    pass
+class Rope(Tile):
+    # sprite = create_sprite('rope.png')
+
+    def __init__(self, coords):
+        super().__init__(coords)
+        self.image = load_image('grass.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
 
 
 class Stone(Tile):
     # sprite = create_sprite('stone.png')
 
-    def __init__(self, coords, is_digable=True):
+    def __init__(self, coords):
         super().__init__(coords, is_top_solid=True, is_side_solid=True)
         self.image = load_image('stone.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
-        self.digable = is_digable
         self.dig_data = 0
-
-    def is_digable(self):
-        return self.digable and not self.dig_data
-
-    def dig(self):
-        if self.is_digable():
-            self.dig_data = time.time() + TIMER_DELAY
 
 
 class Item(pg.sprite.Sprite):
@@ -179,32 +181,71 @@ class Hero(Entity):
         self.rect = self.image.get_rect()
         self.refresh()
 
+    def fall(self, level):
+        if type(level[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
+            return
+        if len(level) > self.coords[1] + 1 and not level[self.coords[1] + 1][self.coords[0]].get_top():
+            self.coords = self.coords[0], self.coords[1] + 1
+            self.fall(level)
+
     def can_move_left(self, level):
         if self.coords[0] == 0:
             return False
-        return type(level[self.coords[1]][self.coords[0] - 1]) in [Air, Ladder, Rope]
+        return not level[self.coords[1]][self.coords[0] - 1].get_side()
+
+    def can_move_up(self, level):
+        if self.coords[1] == 0:
+            return False
+        return type(level[self.coords[1]][self.coords[0]]) == Ladder
+
+    def move_up(self, level):
+        if self.can_move_up(level):
+            self.coords = self.coords[0], self.coords[1] - 1
+            self.refresh(level)
 
     def move_left(self, level):
         if self.can_move_left(level):
             self.coords = self.coords[0] - 1, self.coords[1]
-            self.refresh()
+            self.refresh(level)
 
     def can_move_right(self, level):
         if self.coords[0] == len(level) - 1:
             return False
-        return type(level[self.coords[1]][self.coords[0] + 1]) in [Air, Ladder, Rope]
+        return not level[self.coords[1]][self.coords[0] + 1].get_side()
 
     def move_right(self, level):
         if self.can_move_right(level):
             self.coords = self.coords[0] + 1, self.coords[1]
-            self.refresh()
+            self.refresh(level)
 
-    def refresh(self):
+    def can_move_down(self, level):
+        if self.coords[1] == len(level) - 1:
+            return False
+        return not level[self.coords[1] + 1][self.coords[0]].get_top() or type(level[self.coords[1] + 1][self.coords[0]]) is Ladder
+
+    def move_down(self, level):
+        if self.can_move_down(level):
+            self.coords = self.coords[0], self.coords[1] + 1
+            self.refresh(level)
+
+    def mouse_motion(self, coords, level):
+        if coords[1] > self.rect[1]:
+            self.move_down(level)
+        if coords[1] < self.rect[1]:
+            self.move_up(level)
+        if coords[0] > self.rect[0]:
+            self.move_right(level)
+        if coords[0] < self.rect[0]:
+            self.move_left(level)
+
+    def refresh(self, level=None):
+        if level is not None:
+            self.fall(level)
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
 
 class Level:
-    tile_codes = {'1': Air, '2': Ladder, '3': Stone}
+    tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Exit}
 
     def __init__(self, level):
         self.size = self.width, self.height = len(level[0]), len(level)
@@ -248,6 +289,7 @@ class LevelScreen:
         self.level = Level(load_level(f'{level}.txt'))
         self.r = True
         self.screen = screen
+        self.level.player.refresh(level=self.level.map)
 
     def run(self):
         self.r = True
@@ -259,14 +301,25 @@ class LevelScreen:
         clock = pg.time.Clock()
         while self.r:
             for event in pg.event.get():
+                mouse_flag = False
                 if event.type == pg.QUIT:
                     self.r = False
-                if event.type == pg.KEYDOWN:
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    mouse_flag = True
+                if event.type == pg.MOUSEBUTTONUP:
+                    mouse_flag = False
+                if mouse_flag:
+                    self.level.player.mouse_motion(event.pos, self.level.map)
+                elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
-                    if keys[pg.K_a]:
+                    if keys[pg.K_a] or keys[pg.K_LEFT]:
                         self.level.player.move_left(self.level.map)
-                    if keys[pg.K_d]:
+                    if keys[pg.K_d] or keys[pg.K_RIGHT]:
                         self.level.player.move_right(self.level.map)
+                    if keys[pg.K_w] or keys[pg.K_UP]:
+                        self.level.player.move_up(self.level.map)
+                    if keys[pg.K_s] or keys[pg.K_DOWN]:
+                        self.level.player.move_down(self.level.map)
                     if keys[pg.K_ESCAPE]:
                         self.r = False
             screen.fill((0, 0, 0))
