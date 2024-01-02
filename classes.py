@@ -250,16 +250,17 @@ class Level:
     def __init__(self, level):
         self.size = self.width, self.height = len(level[0]), len(level)
         self.level = level
-        self.map = [[0 for j in range(len(level))] for i in range(len(level[0]))]
+        self.map = [[0 for j in range(len(level[0]))] for i in range(len(level))]
         self.draw_group = pg.sprite.Group()
         self.player = Hero((0, 0))
         self.player_group = pg.sprite.Group()
         self.player_group.add(self.player)
+        print(len(self.level), len(self.level[0]))
         self.generate_level()
 
     def generate_level(self):
-        for y in range(len(self.map)):
-            for x in range(len(self.map[y])):
+        for y in range(len(self.level)):
+            for x in range(len(self.level[y])):
                 if self.level[y][x] == '@':
                     self.map[y][x] = Air((x, y))
                     self.player.move((x, y))
@@ -327,11 +328,13 @@ class LevelScreen:
             camera.update(self.level.player)
             for sprite in all_sprites:
                 camera.apply(sprite)
+            camera.undo(background)
             all_sprites.draw(self.screen)
             self.level.draw(self.screen)
             self.level.player_group.draw(self.screen)
             for sprite in all_sprites:
                 camera.undo(sprite)
+            camera.apply(background)
             pg.display.flip()
             clock.tick(165)
 
@@ -397,13 +400,14 @@ class PlayButton(Button):
 
 
 class LevelButton(Button):
-    def __init__(self, pos, size, screen, font, text, text_color, border_color, back_color, win):
+    def __init__(self, pos, size, screen, font, text, text_color, border_color, back_color, win, level):
         super().__init__(pos, size, screen, font, text, text_color, border_color, back_color)
         self.win = win
+        self.level = level
 
     def on_click(self):
         #self.win.r = False
-        lvl = LevelScreen('map', self.win.screen)
+        lvl = LevelScreen(self.level, self.win.screen)
         lvl.run()
 
 
@@ -437,7 +441,7 @@ class LevelSelectionWindow:
                 y_of = int(0.05 * HEIGHT)
                 sz = int((HEIGHT * (0.95 - 0.05 * self.level_rows)) // self.level_rows)
                 x_of = int((WIDTH - sz * self.level_columns) // (self.level_columns + 1))
-                row.append(LevelButton((x_of + x * (x_of + sz), y_of + y * (y_of + sz)), (sz, sz), self.screen, pg.font.Font(None,  sz), str(y * self.level_columns + x + 1), (175, 220, 55), (77, 100, 17), (75, 75, 75), self))
+                row.append(LevelButton((x_of + x * (x_of + sz), y_of + y * (y_of + sz)), (sz, sz), self.screen, pg.font.Font(None,  sz), str(y * self.level_columns + x + 1), (175, 220, 55), (77, 100, 17), (75, 75, 75), self, str(y * self.level_columns + x + 1)))
             self.level_buttons.append(row)
 
     def run(self):
