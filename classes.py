@@ -209,7 +209,7 @@ class Hero(Entity):
             self.refresh(level)
 
     def can_move_right(self, level):
-        if self.coords[0] == len(level) - 1:
+        if self.coords[0] == len(level[0]) - 1:
             return False
         return not level[self.coords[1]][self.coords[0] + 1].get_side()
 
