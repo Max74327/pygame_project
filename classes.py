@@ -11,6 +11,7 @@ tiles_group = pg.sprite.Group()
 player_group = pg.sprite.Group()
 entity_group = pg.sprite.Group()
 TILE_WIDTH = 30
+MIN_TILE_SIZE = 30
 SIZE = WIDTH, HEIGHT = 1600, 900  # 1920, 1080
 FPS = 60  # 165
 pg.init()
@@ -45,11 +46,24 @@ def start_screen():
     screen.blit(background, (0, 0))
 
 
-def load_level(name):
+def load_level(name, camera=None):
+    global TILE_WIDTH
     path = 'data/' + name
     with open(path, 'r') as f:
         level_map = [line.strip() for line in f]
     max_width = max(map(len, level_map))
+    width, height = max_width, len(level_map)
+    TILE_WIDTH = max(MIN_TILE_SIZE, min(WIDTH // width, HEIGHT // height))
+    if camera is not None:
+        if TILE_WIDTH * width <= WIDTH:
+            camera.mode = 1
+            if TILE_WIDTH * height <= HEIGHT:
+                camera.mode = -1
+        elif TILE_WIDTH * height <= HEIGHT:
+            camera.mode = 0
+        else:
+            camera.mode = None
+        print(camera.mode)
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
 
@@ -77,9 +91,9 @@ class Camera:
     def update(self, target):
         self.dx = -(target.rect.x + target.rect.w // 2 - WIDTH // 2)
         self.dy = -(target.rect.y + target.rect.h // 2 - HEIGHT // 2)
-        if self.mode is not None and self.mode == 0:
+        if self.mode is not None and self.mode == 0 or self.mode == -1:
             self.dy = 0
-        elif self.mode is not None and self.mode == 1:
+        if self.mode is not None and self.mode == 1 or self.mode == -1:
             self.dx = 0
 
 
@@ -287,7 +301,8 @@ def wait_screen():
 
 class LevelScreen:
     def __init__(self, level, screen):
-        self.level = Level(load_level(f'{level}.txt'))
+        self.camera = Camera()
+        self.level = Level(load_level(f'{level}.txt', camera=self.camera))
         self.r = True
         self.screen = screen
         self.level.player.refresh(level=self.level.map)
@@ -298,7 +313,6 @@ class LevelScreen:
         background.image = load_image('background.jpg')
         background.rect = background.image.get_rect()
         all_sprites.add(background)
-        camera = Camera()
         clock = pg.time.Clock()
         while self.r:
             for event in pg.event.get():
@@ -325,16 +339,16 @@ class LevelScreen:
                         self.r = False
             screen.fill((0, 0, 0))
             self.level.update_player()
-            camera.update(self.level.player)
+            self.camera.update(self.level.player)
             for sprite in all_sprites:
-                camera.apply(sprite)
-            camera.undo(background)
+                self.camera.apply(sprite)
+            self.camera.undo(background)
             all_sprites.draw(self.screen)
             self.level.draw(self.screen)
             self.level.player_group.draw(self.screen)
             for sprite in all_sprites:
-                camera.undo(sprite)
-            camera.apply(background)
+                self.camera.undo(sprite)
+            self.camera.apply(background)
             pg.display.flip()
             clock.tick(165)
 
