@@ -63,7 +63,7 @@ def load_level(name, camera=None):
             camera.mode = 0
         else:
             camera.mode = None
-        print(camera.mode)
+        #print(camera.mode)
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
 
@@ -242,14 +242,16 @@ class Hero(Entity):
             self.coords = self.coords[0], self.coords[1] + 1
             self.refresh(level)
 
-    def mouse_motion(self, coords, level):
-        if coords[1] > self.rect[1]:
+    def mouse_motion(self, coords, level, camera=None):
+        if camera is not None:
+            coords = coords[0] - camera.dx, coords[1] - camera.dy
+        if coords[1] > self.rect.bottom:
             self.move_down(level)
-        if coords[1] < self.rect[1]:
+        if coords[1] < self.rect.top:
             self.move_up(level)
-        if coords[0] > self.rect[0]:
+        if coords[0] > self.rect.right:
             self.move_right(level)
-        if coords[0] < self.rect[0]:
+        if coords[0] < self.rect.left:
             self.move_left(level)
 
     def refresh(self, level=None):
@@ -269,7 +271,7 @@ class Level:
         self.player = Hero((0, 0))
         self.player_group = pg.sprite.Group()
         self.player_group.add(self.player)
-        print(len(self.level), len(self.level[0]))
+        #print(len(self.level), len(self.level[0]))
         self.generate_level()
 
     def generate_level(self):
@@ -316,15 +318,11 @@ class LevelScreen:
         clock = pg.time.Clock()
         while self.r:
             for event in pg.event.get():
-                mouse_flag = False
                 if event.type == pg.QUIT:
                     self.r = False
                 if event.type == pg.MOUSEBUTTONDOWN:
-                    mouse_flag = True
-                if event.type == pg.MOUSEBUTTONUP:
-                    mouse_flag = False
-                if mouse_flag:
-                    self.level.player.mouse_motion(event.pos, self.level.map)
+                    if pg.mouse.get_pressed()[0]:
+                        self.level.player.mouse_motion(event.pos, self.level.map, self.camera)
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if keys[pg.K_a] or keys[pg.K_LEFT]:
