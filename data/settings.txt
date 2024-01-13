@@ -1,0 +1,4 @@
+[pg.K_w, pg.K_UP]
+[pg.K_s, pg.K_DOWN]
+[pg.K_a, pg.K_LEFT]
+[pg.K_d, pg.K_RIGHT]

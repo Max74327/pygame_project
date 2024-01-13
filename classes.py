@@ -308,6 +308,10 @@ class LevelScreen:
         self.r = True
         self.screen = screen
         self.level.player.refresh(level=self.level.map)
+        self.controls = None
+        with open('data/settings.txt', 'r') as f:
+            self.controls = [eval(i) for i in f.readlines()]
+        print(self.controls)
 
     def run(self):
         self.r = True
@@ -325,13 +329,13 @@ class LevelScreen:
                         self.level.player.mouse_motion(event.pos, self.level.map, self.camera)
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
-                    if keys[pg.K_a] or keys[pg.K_LEFT]:
+                    if any(keys[i] for i in self.controls[2]):  # keys[pg.K_a] or keys[pg.K_LEFT]:
                         self.level.player.move_left(self.level.map)
-                    if keys[pg.K_d] or keys[pg.K_RIGHT]:
+                    if any(keys[i] for i in self.controls[3]):  # keys[pg.K_d] or keys[pg.K_RIGHT]:
                         self.level.player.move_right(self.level.map)
-                    if keys[pg.K_w] or keys[pg.K_UP]:
+                    if any(keys[i] for i in self.controls[0]):  # keys[pg.K_w] or keys[pg.K_UP]:
                         self.level.player.move_up(self.level.map)
-                    if keys[pg.K_s] or keys[pg.K_DOWN]:
+                    if any(keys[i] for i in self.controls[1]):  # keys[pg.K_s] or keys[pg.K_DOWN]:
                         self.level.player.move_down(self.level.map)
                     if keys[pg.K_ESCAPE]:
                         self.r = False
@@ -487,6 +491,8 @@ class SettingsMenu:
     def __init__(self, screen):
         self.screen = screen
         self.r = True
+        self.button_up_change = None
+        print(pg.key.name(1073741906))
 
     def run(self):
         self.r = True
