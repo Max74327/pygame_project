@@ -290,7 +290,6 @@ class Hero(Entity):
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
 
-
 class Enemy(Entity):
     def __init__(self, coords):
         super().__init__("Enemy", coords)
@@ -372,6 +371,7 @@ class LevelScreen:
 
     def win(self):
         self.r = False
+
     def run(self):
         self.r = True
         background = pg.sprite.Sprite()
@@ -398,6 +398,10 @@ class LevelScreen:
                         self.level.player.move_down(self.level)
                     if keys[pg.K_ESCAPE]:
                         self.r = False
+                    else:
+                        continue
+                    for enemy in self.level.enemys:
+                        enemy.en_move(self.level)
             screen.fill((0, 0, 0))
             if self.level.treasure == 0:
                 self.level.exit_active = True
