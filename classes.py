@@ -110,6 +110,9 @@ class Tile(pg.sprite.Sprite):
     def get_side(self) -> bool:
         return self.data[1]
 
+    def stepped_on(self, level):
+        pass
+
     # def get_sprite(self) :
     #    return self.data[2]
 
@@ -132,6 +135,10 @@ class Exit(Tile):
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
+
+    def stepped_on(self, level):
+        if level.exit_active:
+            level.win()
 
 
 class Ladder(Tile):
@@ -168,12 +175,19 @@ class Stone(Tile):
         self.dig_data = 0
 
 
-class Item(pg.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
+class Treasure(Tile):
+    # sprite = create_sprite('treasure.png')
 
-    def take(self):
-        pass
+    def __init__(self, coords):
+        super().__init__(coords)
+        self.image = load_image('treasure.png', -1)
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
+
+    def stepped_on(self, level):
+        level.treasure -= 1
+        level[self.coords[1]][self.coords[0]] = Air(self.coords)
 
 
 class Entity(pg.sprite.Sprite):
@@ -196,21 +210,21 @@ class Hero(Entity):
         self.refresh()
 
     def fall(self, level):
-        if type(level[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
+        if type(level.map[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
             return
-        if len(level) > self.coords[1] + 1 and not level[self.coords[1] + 1][self.coords[0]].get_top():
+        if len(level.map) > self.coords[1] + 1 and not level.map[self.coords[1] + 1][self.coords[0]].get_top():
             self.coords = self.coords[0], self.coords[1] + 1
             self.fall(level)
 
     def can_move_left(self, level):
         if self.coords[0] == 0:
             return False
-        return not level[self.coords[1]][self.coords[0] - 1].get_side()
+        return not level.map[self.coords[1]][self.coords[0] - 1].get_side()
 
     def can_move_up(self, level):
         if self.coords[1] == 0:
             return False
-        return type(level[self.coords[1]][self.coords[0]]) == Ladder
+        return type(level.map[self.coords[1]][self.coords[0]]) == Ladder
 
     def move_up(self, level):
         if self.can_move_up(level):
@@ -223,9 +237,9 @@ class Hero(Entity):
             self.refresh(level)
 
     def can_move_right(self, level):
-        if self.coords[0] == len(level[0]) - 1:
+        if self.coords[0] == len(level.map[0]) - 1:
             return False
-        return not level[self.coords[1]][self.coords[0] + 1].get_side()
+        return not level.map[self.coords[1]][self.coords[0] + 1].get_side()
 
     def move_right(self, level):
         if self.can_move_right(level):
@@ -233,9 +247,9 @@ class Hero(Entity):
             self.refresh(level)
 
     def can_move_down(self, level):
-        if self.coords[1] == len(level) - 1:
+        if self.coords[1] == len(level.map) - 1:
             return False
-        return not level[self.coords[1] + 1][self.coords[0]].get_top() or type(level[self.coords[1] + 1][self.coords[0]]) is Ladder
+        return not level.map[self.coords[1] + 1][self.coords[0]].get_top() or type(level.map[self.coords[1] + 1][self.coords[0]]) is Ladder
 
     def move_down(self, level):
         if self.can_move_down(level):
@@ -256,22 +270,25 @@ class Hero(Entity):
 
     def refresh(self, level=None):
         if level is not None:
+            level.map[self.coords[1]][self.coords[0]].stepped_on(level)
             self.fall(level)
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
 
 class Level:
-    tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Exit}
+    tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Treasure, 'e': Exit}
 
-    def __init__(self, level):
+    def __init__(self, sender, level):
+        self.sender = sender
         self.size = self.width, self.height = len(level[0]), len(level)
         self.level = level
+        self.exit_active = False
+        self.treasure = 0
         self.map = [[0 for j in range(len(level[0]))] for i in range(len(level))]
         self.draw_group = pg.sprite.Group()
         self.player = Hero((0, 0))
         self.player_group = pg.sprite.Group()
         self.player_group.add(self.player)
-        #print(len(self.level), len(self.level[0]))
         self.generate_level()
 
     def generate_level(self):
@@ -281,6 +298,12 @@ class Level:
                     self.map[y][x] = Air((x, y))
                     self.player.move((x, y))
                     self.player.refresh()
+                elif self.level[y][x] == 'e':
+
+                    self.map[y][x] = Exit((x, y))
+                elif self.level[y][x] == '5':
+                    self.treasure += 1
+                    self.map[y][x] = Treasure((x, y))
                 else:
                     self.map[y][x] = self.tile_codes[self.level[y][x]]((x, y))
                 self.draw_group.add(self.map[y][x])
@@ -294,6 +317,9 @@ class Level:
     def update_player(self):
         self.player.refresh()
 
+    def win(self):
+        self.sender.win()
+
 
 def wait_screen():
     while wait_for_press():
@@ -304,15 +330,17 @@ def wait_screen():
 class LevelScreen:
     def __init__(self, level, screen):
         self.camera = Camera()
-        self.level = Level(load_level(f'{level}.txt', camera=self.camera))
+        self.level = Level(self, load_level(f'{level}.txt', camera=self.camera))
         self.r = True
         self.screen = screen
-        self.level.player.refresh(level=self.level.map)
+        self.level.player.refresh(level=self.level)
         self.controls = None
         with open('data/settings.txt', 'r') as f:
             self.controls = [eval(i) for i in f.readlines()]
         print(self.controls)
 
+    def win(self):
+        self.r = False
     def run(self):
         self.r = True
         background = pg.sprite.Sprite()
@@ -330,16 +358,18 @@ class LevelScreen:
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if any(keys[i] for i in self.controls[2]):  # keys[pg.K_a] or keys[pg.K_LEFT]:
-                        self.level.player.move_left(self.level.map)
+                        self.level.player.move_left(self.level)
                     if any(keys[i] for i in self.controls[3]):  # keys[pg.K_d] or keys[pg.K_RIGHT]:
-                        self.level.player.move_right(self.level.map)
+                        self.level.player.move_right(self.level)
                     if any(keys[i] for i in self.controls[0]):  # keys[pg.K_w] or keys[pg.K_UP]:
-                        self.level.player.move_up(self.level.map)
+                        self.level.player.move_up(self.level)
                     if any(keys[i] for i in self.controls[1]):  # keys[pg.K_s] or keys[pg.K_DOWN]:
-                        self.level.player.move_down(self.level.map)
+                        self.level.player.move_down(self.level)
                     if keys[pg.K_ESCAPE]:
                         self.r = False
             screen.fill((0, 0, 0))
+            if self.level.treasure == 0:
+                self.level.exit_active = True
             self.level.update_player()
             self.camera.update(self.level.player)
             for sprite in all_sprites:
