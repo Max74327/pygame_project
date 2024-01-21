@@ -2,7 +2,9 @@ import pygame as pg
 import os
 import sys
 import time
+import queue
 TIMER_DELAY = 10
+ENEMY_DELAY = 4
 
 # from teste_classes_maintenance import tile_group, entity_group
 # from test1 import SIZE, WIDTH, HEIGHT
@@ -199,16 +201,6 @@ class Entity(pg.sprite.Sprite):
     def move(self, coords):
         self.coords = coords
 
-
-class Hero(Entity):
-    # sprite = create_sprite('hero.png')
-    def __init__(self, coords):
-        super().__init__("Hero", coords)  # , (Hero.sprite,))
-        self.image = load_image('hero.png')
-        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
-        self.rect = self.image.get_rect()
-        self.refresh()
-
     def fall(self, level):
         if type(level.map[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
             return
@@ -224,7 +216,7 @@ class Hero(Entity):
     def can_move_up(self, level):
         if self.coords[1] == 0:
             return False
-        return type(level.map[self.coords[1]][self.coords[0]]) == Ladder
+        return type(level.map[self.coords[1]][self.coords[0]]) == Ladder and type(level.map[self.coords[1] - 1][self.coords[0]]) != Stone
 
     def move_up(self, level):
         if self.can_move_up(level):
@@ -261,12 +253,35 @@ class Hero(Entity):
             coords = coords[0] - camera.dx, coords[1] - camera.dy
         if coords[1] > self.rect.bottom:
             self.move_down(level)
-        if coords[1] < self.rect.top:
+        elif coords[1] < self.rect.top:
             self.move_up(level)
-        if coords[0] > self.rect.right:
+        elif coords[0] > self.rect.right:
             self.move_right(level)
-        if coords[0] < self.rect.left:
+        elif coords[0] < self.rect.left:
             self.move_left(level)
+
+    def refresh(self, level=None):
+        if level is not None:
+            self.fall(level)
+        self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
+
+
+class Hero(Entity):
+    # sprite = create_sprite('hero.png')
+    def __init__(self, coords):
+        super().__init__("Hero", coords)  # , (Hero.sprite,))
+        self.image = load_image('hero.png')
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.refresh()
+
+    def fall(self, level):
+        if type(level.map[self.coords[1]][self.coords[0]]) in [Ladder, Rope]:
+            return
+        if len(level.map) > self.coords[1] + 1 and not level.map[self.coords[1] + 1][self.coords[0]].get_top():
+            self.coords = self.coords[0], self.coords[1] + 1
+            level.map[self.coords[1]][self.coords[0]].stepped_on(level)
+            self.fall(level)
 
     def refresh(self, level=None):
         if level is not None:
@@ -275,11 +290,24 @@ class Hero(Entity):
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
 
+class Enemy(Entity):
+    def __init__(self, coords):
+        super().__init__("Enemy", coords)
+        self.q = queue.Queue()
+        for _ in range(ENEMY_DELAY):
+            self.q.put(coords)
+
+    def en_move(self, coords, level):
+        self.q.put(coords)
+        self.mouse_motion(self.q.get(), level)
+
+
 class Level:
     tile_codes = {'1': Air, '2': Ladder, '3': Stone, '4': Rope, '5': Treasure, 'e': Exit}
 
     def __init__(self, sender, level):
         self.sender = sender
+        self.enemys = []
         self.size = self.width, self.height = len(level[0]), len(level)
         self.level = level
         self.exit_active = False
@@ -299,8 +327,10 @@ class Level:
                     self.player.move((x, y))
                     self.player.refresh()
                 elif self.level[y][x] == 'e':
-
                     self.map[y][x] = Exit((x, y))
+                elif self.level[y][x] == 'E':
+                    self.map[y][x] = Air((x, y))
+                    self.enemys.append(Enemy((x, y)))
                 elif self.level[y][x] == '5':
                     self.treasure += 1
                     self.map[y][x] = Treasure((x, y))
