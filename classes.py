@@ -290,6 +290,7 @@ class Hero(Entity):
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
 
+
 class Enemy(Entity):
     def __init__(self, coords):
         super().__init__("Enemy", coords)
