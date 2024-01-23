@@ -140,7 +140,7 @@ class Exit(Tile):
 
     def stepped_on(self, level):
         if level.exit_active:
-            level.win()
+            level.end(True)
 
 
 class Ladder(Tile):
@@ -305,6 +305,8 @@ class Enemy(Entity):
     def en_move(self, coords, level):
         self.q.put(coords)
         self.mouse_motion(self.q.get(), level)
+        if self.coords == level.player.coords:
+            level.end(False)
 
 
 class Level:
@@ -352,8 +354,8 @@ class Level:
     def update_player(self):
         self.player.refresh()
 
-    def win(self):
-        self.sender.win()
+    def end(self, is_won:bool):
+        self.sender.end(is_won)
 
 
 def wait_screen():
@@ -374,7 +376,7 @@ class LevelScreen:
             self.controls = [eval(i) for i in f.readlines()]
         print(self.controls)
 
-    def win(self):
+    def end(self, is_won:bool):
         self.r = False
 
     def run(self):
@@ -392,7 +394,7 @@ class LevelScreen:
                     if pg.mouse.get_pressed()[0]:
                         self.level.player.mouse_motion(event.pos, self.level, self.camera)
                         for enemy in self.level.enemys:
-                            enemy.en_move(self.level)
+                            enemy.en_move(self.level.player.coords, self.level)
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if any(keys[i] for i in self.controls[2]):  # keys[pg.K_a] or keys[pg.K_LEFT]:
