@@ -189,7 +189,8 @@ class Treasure(Tile):
 
     def stepped_on(self, level):
         level.treasure -= 1
-        level[self.coords[1]][self.coords[0]] = Air(self.coords)
+        level.map[self.coords[1]][self.coords[0]] = Air(self.coords)
+        self.image = load_image('air.png', -1)
 
 
 class Entity(pg.sprite.Sprite):
@@ -255,7 +256,7 @@ class Entity(pg.sprite.Sprite):
             self.move_down(level)
         elif coords[1] < self.rect.top:
             self.move_up(level)
-        elif coords[0] > self.rect.right:
+        if coords[0] > self.rect.right:
             self.move_right(level)
         elif coords[0] < self.rect.left:
             self.move_left(level)
@@ -293,6 +294,10 @@ class Hero(Entity):
 class Enemy(Entity):
     def __init__(self, coords):
         super().__init__("Enemy", coords)
+        self.image = load_image('Enemy.png')
+        self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
         self.q = queue.Queue()
         for _ in range(ENEMY_DELAY):
             self.q.put(coords)
@@ -385,7 +390,9 @@ class LevelScreen:
                     self.r = False
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if pg.mouse.get_pressed()[0]:
-                        self.level.player.mouse_motion(event.pos, self.level.map, self.camera)
+                        self.level.player.mouse_motion(event.pos, self.level, self.camera)
+                        for enemy in self.level.enemys:
+                            enemy.en_move(self.level)
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
                     if any(keys[i] for i in self.controls[2]):  # keys[pg.K_a] or keys[pg.K_LEFT]:
