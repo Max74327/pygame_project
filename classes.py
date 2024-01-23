@@ -324,6 +324,7 @@ class Level:
         self.player = Hero((0, 0))
         self.player_group = pg.sprite.Group()
         self.player_group.add(self.player)
+        self.enemy_group = pg.sprite.Group()
         self.generate_level()
 
     def generate_level(self):
@@ -338,6 +339,7 @@ class Level:
                 elif self.level[y][x] == 'E':
                     self.map[y][x] = Air((x, y))
                     self.enemys.append(Enemy((x, y)))
+                    self.enemy_group.add(self.enemys[-1])
                 elif self.level[y][x] == '5':
                     self.treasure += 1
                     self.map[y][x] = Treasure((x, y))
@@ -422,6 +424,7 @@ class LevelScreen:
             all_sprites.draw(self.screen)
             self.level.draw(self.screen)
             self.level.player_group.draw(self.screen)
+            self.level.enemy_group.draw(self.screen)
             for sprite in all_sprites:
                 self.camera.undo(sprite)
             self.camera.apply(background)
