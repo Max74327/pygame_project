@@ -87,7 +87,6 @@ class Queue:
 
     def get(self):
         item = self.data[self.iter[0]]
-        print(item)
         self.iter[0] = (self.iter[0] + 1) % self.size
         return item
 
