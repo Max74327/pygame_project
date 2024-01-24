@@ -2,7 +2,6 @@ import pygame as pg
 import os
 import sys
 import time
-import queue
 TIMER_DELAY = 10
 ENEMY_DELAY = 4
 
@@ -74,6 +73,25 @@ def wait_for_press():
         if event.type in [pg.MOUSEBUTTONDOWN, pg.KEYDOWN]:
             return False
     return True
+
+
+class Queue:
+    def __init__(self, size=ENEMY_DELAY + 1, input_data=None):
+        self.size = size
+        self.data = [input_data] * size
+        self.iter = [0, size - 1]
+
+    def put(self, item):
+        self.data[self.iter[1]] = item
+        self.iter[1] = (self.iter[1] + 1) % self.size
+
+    def get(self):
+        item = self.data[self.iter[0]]
+        self.iter[0] = (self.iter[0] + 1) % self.size
+        return item
+
+    def __str__(self):
+        return self.data
 
 
 class Camera:
@@ -271,6 +289,7 @@ class Hero(Entity):
     # sprite = create_sprite('hero.png')
     def __init__(self, coords):
         super().__init__("Hero", coords)  # , (Hero.sprite,))
+        self.coords = coords
         self.image = load_image('hero.png')
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
@@ -298,13 +317,23 @@ class Enemy(Entity):
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
-        self.q = queue.Queue()
+        self.q = Queue()
         for _ in range(ENEMY_DELAY):
             self.q.put(coords)
 
     def en_move(self, coords, level):
+        target = self.q.get()
         self.q.put(coords)
-        self.mouse_motion(self.q.get(), level)
+        if self.coords == level.player.coords:
+            level.end(False)
+        if target[1] > self.coords[1]:
+            self.move_down(level)
+        elif target[1] < self.coords[1]:
+            self.move_up(level)
+        if target[0] > self.coords[0]:
+            self.move_right(level)
+        elif target[0] < self.coords[0]:
+            self.move_left(level)
         if self.coords == level.player.coords:
             level.end(False)
 
@@ -412,7 +441,7 @@ class LevelScreen:
                     else:
                         continue
                     for enemy in self.level.enemys:
-                        enemy.en_move(self.level)
+                        enemy.en_move(self.level.player.coords, self.level)
             screen.fill((0, 0, 0))
             if self.level.treasure == 0:
                 self.level.exit_active = True
