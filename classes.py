@@ -87,6 +87,7 @@ class Queue:
 
     def get(self):
         item = self.data[self.iter[0]]
+        print(item)
         self.iter[0] = (self.iter[0] + 1) % self.size
         return item
 
@@ -428,6 +429,8 @@ class LevelScreen:
                             enemy.en_move(self.level.player.coords, self.level)
                 elif event.type == pg.KEYDOWN:
                     keys = pg.key.get_pressed()
+                    for enemy in self.level.enemys:
+                        enemy.en_move(self.level.player.coords, self.level)
                     if any(keys[i] for i in self.controls[2]):  # keys[pg.K_a] or keys[pg.K_LEFT]:
                         self.level.player.move_left(self.level)
                     if any(keys[i] for i in self.controls[3]):  # keys[pg.K_d] or keys[pg.K_RIGHT]:
@@ -440,8 +443,6 @@ class LevelScreen:
                         self.r = False
                     else:
                         continue
-                    for enemy in self.level.enemys:
-                        enemy.en_move(self.level.player.coords, self.level)
             screen.fill((0, 0, 0))
             if self.level.treasure == 0:
                 self.level.exit_active = True
