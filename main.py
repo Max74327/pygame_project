@@ -24,7 +24,7 @@ def wait_for_press():
 
 
 def start_screen():
-    background = pg.transform.scale(load_image('fon.jpg'), SIZE)
+    background = pg.transform.scale(load_image('fon.png'), SIZE)
     screen.blit(background, (0, 0))
 
 
