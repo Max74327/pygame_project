@@ -12,7 +12,7 @@ tiles_group = pg.sprite.Group()
 player_group = pg.sprite.Group()
 entity_group = pg.sprite.Group()
 TILE_WIDTH = 30
-MIN_TILE_SIZE = 30
+MIN_TILE_SIZE = 50
 SIZE = WIDTH, HEIGHT = 1600, 900  # 1920, 1080
 FPS = 60  # 165
 pg.init()
@@ -43,7 +43,7 @@ def terminate():
 
 
 def start_screen():
-    background = pg.transform.scale(load_image('fon.jpg'), SIZE)
+    background = pg.transform.scale(load_image('fon.png'), SIZE)
     screen.blit(background, (0, 0))
 
 
@@ -177,7 +177,7 @@ class Rope(Tile):
 
     def __init__(self, coords):
         super().__init__(coords)
-        self.image = load_image('grass.png', -1)
+        self.image = load_image('rope.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
@@ -290,9 +290,10 @@ class Hero(Entity):
     def __init__(self, coords):
         super().__init__("Hero", coords)  # , (Hero.sprite,))
         self.coords = coords
-        self.image = load_image('hero.png')
+        self.image = load_image('hero.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
+        self.direct = 'r'
         self.refresh()
 
     def fall(self, level):
@@ -309,17 +310,24 @@ class Hero(Entity):
             self.fall(level)
         self.rect.x, self.rect.y = self.coords[0] * TILE_WIDTH, self.coords[1] * TILE_WIDTH
 
+    def change_direct(self):
+        self.image = pg.transform.flip(self.image, True, False)
+
 
 class Enemy(Entity):
     def __init__(self, coords):
         super().__init__("Enemy", coords)
-        self.image = load_image('Enemy.png')
+        self.image = load_image('Enemy.png', -1)
         self.image = pg.transform.scale(self.image, (TILE_WIDTH, TILE_WIDTH))
         self.rect = self.image.get_rect()
         self.rect.move_ip(coords[0] * TILE_WIDTH, coords[1] * TILE_WIDTH)
         self.q = Queue()
+        self.direct = 'l'
         for _ in range(ENEMY_DELAY):
             self.q.put(coords)
+
+    def change_direct(self):
+        self.image = pg.transform.flip(self.image, True, False)
 
     def en_move(self, coords, level):
         target = self.q.get()
@@ -332,8 +340,14 @@ class Enemy(Entity):
             self.move_up(level)
         if target[0] > self.coords[0]:
             self.move_right(level)
+            if self.direct == 'l':
+                self.direct = 'r'
+                self.change_direct()
         elif target[0] < self.coords[0]:
             self.move_left(level)
+            if self.direct == 'r':
+                self.direct = 'l'
+                self.change_direct()
         if self.coords == level.player.coords:
             level.end(False)
 
@@ -397,8 +411,9 @@ def wait_screen():
 
 class LevelScreen:
     def __init__(self, level, screen):
+        self.n = level
         self.camera = Camera()
-        self.level = Level(self, load_level(f'{level}.txt', camera=self.camera))
+        self.level = Level(self, load_level(f'{level}\\map.txt', camera=self.camera))
         self.r = True
         self.screen = screen
         self.level.player.refresh(level=self.level)
@@ -413,7 +428,8 @@ class LevelScreen:
     def run(self):
         self.r = True
         background = pg.sprite.Sprite()
-        background.image = load_image('background.jpg')
+        background.image = load_image(f'{self.n}\\background.jpg')
+        background.image = pg.transform.scale(background.image, SIZE)
         background.rect = background.image.get_rect()
         all_sprites.add(background)
         clock = pg.time.Clock()
@@ -432,8 +448,14 @@ class LevelScreen:
                         enemy.en_move(self.level.player.coords, self.level)
                     if any(keys[i] for i in self.controls[2]):  # keys[pg.K_a] or keys[pg.K_LEFT]:
                         self.level.player.move_left(self.level)
+                        if self.level.player.direct == 'r':
+                            self.level.player.direct = 'l'
+                            self.level.player.change_direct()
                     if any(keys[i] for i in self.controls[3]):  # keys[pg.K_d] or keys[pg.K_RIGHT]:
                         self.level.player.move_right(self.level)
+                        if self.level.player.direct == 'l':
+                            self.level.player.direct = 'r'
+                            self.level.player.change_direct()
                     if any(keys[i] for i in self.controls[0]):  # keys[pg.K_w] or keys[pg.K_UP]:
                         self.level.player.move_up(self.level)
                     if any(keys[i] for i in self.controls[1]):  # keys[pg.K_s] or keys[pg.K_DOWN]:
